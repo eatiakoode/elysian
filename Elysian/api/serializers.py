@@ -7,7 +7,7 @@ import hashlib
 class UserRegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['u_name', 'email', 'password']
+        fields = ['u_name', 'email', 'password', 'dob']  # Added dob field
 
     def create(self, validated_data):
         # hash password before saving

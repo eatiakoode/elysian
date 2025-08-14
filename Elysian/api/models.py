@@ -1,4 +1,6 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser
+
 
 class User(models.Model):
     u_id = models.BigAutoField(primary_key=True)
@@ -9,3 +11,5 @@ class User(models.Model):
 
     class Meta:
         db_table = 'user'  # use your existing table name
+
+
