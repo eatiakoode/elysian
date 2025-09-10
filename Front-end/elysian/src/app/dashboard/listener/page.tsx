@@ -107,7 +107,7 @@ export default function ListenerDashboard() {
         setLoading(true);
         setError(null);
         const connectedUsers = await connectionList();
-        const seekerCount= connectedUsers.data.length
+        const seekerCount= connectedUsers?.data?.length || 0
         setActiveSeeker(seekerCount)
         const listener_id = localStorage.getItem('elysian_user_id') || "";
         const listenerData = await listener(listener_id);

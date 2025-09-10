@@ -266,12 +266,48 @@ export const updateUserProfile = async (profileData: FormData): Promise<ApiRespo
 }
 
 export const listener = async (listener_id:string): Promise<ApiResponse> => {
-  return apiCall('/api/listener-profile/', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ listener_id: listener_id }),
-  });
+  try {
+    const url = getApiUrl('/api/listenerList/');
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ listener_id: listener_id }),
+    });
+
+    // Check if response is ok
+    if (!response.ok) {
+      return {
+        success: false,
+        error: `HTTP ${response.status}: ${response.statusText}`,
+        data: null
+      };
+    }
+
+    // Check if response is JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      return {
+        success: false,
+        error: 'Invalid response format from server',
+        data: null
+      };
+    }
+
+    const data = await response.json();
+    
+    return {
+      success: true,
+      data: data,
+      message: 'Listener data fetched successfully'
+    };
+  } catch (error) {
+    console.error('Error fetching listener:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error occurred',
+      data: null
+    };
+  }
 }

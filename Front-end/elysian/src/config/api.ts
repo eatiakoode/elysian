@@ -2,8 +2,8 @@
 
 export const API_CONFIG = {
   // Update this URL to match your backend server
-  BASE_URL: "http://127.0.0.1:8000", // Real backend URL
-  
+  BASE_URL: "https://n43rqf7x-8000.inc1.devtunnels.ms", // Real backend URL
+  WS_BASE_URL: "wss://n43rqf7x-8000.inc1.devtunnels.ms",
   // API Endpoints
   ENDPOINTS: {
     // REGISTER: "/api/register/",

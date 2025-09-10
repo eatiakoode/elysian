@@ -12,6 +12,7 @@ import {
   Search,
   X
 } from "lucide-react";
+import { API_CONFIG } from "@/config/api";
 
 // Define proper TypeScript interfaces
 interface ConnectedListener {
@@ -128,7 +129,7 @@ export default function SeekerChatsPage() {
 
     // Create new WebSocket connection
     const socket = new WebSocket(
-      `ws://localhost:8000/ws/chat/${roomId}/?token=${accessToken}`
+      `${API_CONFIG.WS_BASE_URL}/ws/chat/${roomId}/?token=${accessToken}`
     );
 
     socket.onopen = () => {

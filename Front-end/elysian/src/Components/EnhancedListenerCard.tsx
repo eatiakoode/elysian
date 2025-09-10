@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Star, Phone, Users, ExternalLink } from "lucide-react";
 import { connection } from "@/utils/api";
 
@@ -20,6 +21,7 @@ type EnhancedListener = {
 export type { EnhancedListener };
 
 export default function EnhancedListenerCard({ listener }: { listener: EnhancedListener }) {
+  const router = useRouter();
   const displayName = listener.name || listener.username || "Listener";
   const ratingValue = listener.rating == null ? 4 : listener.rating;
   const description = listener.description ?? "Listener description...";
@@ -67,7 +69,10 @@ export default function EnhancedListenerCard({ listener }: { listener: EnhancedL
               <h3 className="text-xl font-bold text-gray-800 group-hover:text-[#FF8C5A] transition-colors">
                 {displayName}
               </h3>
-              <button className="flex items-center gap-1 text-sm text-gray-500 hover:text-[#FF8C5A] transition-colors duration-300 font-medium">
+              <button 
+                onClick={() => router.push(`/listener/${listener.l_id}`)}
+                className="flex items-center gap-1 text-sm text-gray-500 hover:text-[#FF8C5A] transition-colors duration-300 font-medium hover:scale-105"
+              >
                 <span>View Profile</span>
                 <ExternalLink className="w-3 h-3" />
               </button>

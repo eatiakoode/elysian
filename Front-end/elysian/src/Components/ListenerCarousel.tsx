@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
@@ -13,8 +14,28 @@ import { API_CONFIG } from "@/config/api";
 import { connection } from "@/utils/api";
 const LISTENERS_PER_SLIDE = 2;
 
+interface Listener {
+  l_id: string;
+  username: string;
+  name?: string;
+  user?: {
+    profile_image?: string;
+    email?: string;
+  };
+  description?: string;
+  rating?: number;
+  preferences?: string[];
+  languages?: string[];
+  gender?: string;
+  age?: number;
+  experience_hours?: number;
+  location?: string;
+  badge?: string;
+}
+
 export default function FeaturedListeners() {
-  const [listeners, setListeners] = useState([]);
+  const router = useRouter();
+  const [listeners, setListeners] = useState<Listener[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [ConnectButton, setConnectButton] = useState(false);
@@ -35,12 +56,15 @@ export default function FeaturedListeners() {
     setTimeout(() => setIsTransitioning(false), 300);
   };
 
-  useEffect(() => {
+   useEffect(() => {
     const fetchListenerData = async () => {
       const listenerData = await listenerCarouselData();
-      const user_type = localStorage.getItem('elysian_user')
-      console.log("User Type from localStorage:", user_type?.user_type);
+      const user_type = JSON.parse(localStorage.getItem('elysian_user') || '{}')
+      console.log("User Type from localStorage:", user_type);
       if(user_type?.user_type==='seeker'){
+        setConnectButton(true);
+      }
+      else if(user_type==null){
         setConnectButton(true);
       }
       setListeners(listenerData);
@@ -54,7 +78,7 @@ export default function FeaturedListeners() {
         console.error("No listener ID available for connection.");
         return;
       }
-      const data = await connection(listener_id || "");
+      const data = await connection(listener_id);
       console.log("Connecting to listener:", listener_id, data);
       // Add more logic (redirect, open modal, etc.)
     } catch (error) {
@@ -133,28 +157,34 @@ export default function FeaturedListeners() {
                                 <h3 className="text-3xl font-bold text-gray-800 group-hover:text-[#FF8C5A] transition-colors">
                                   {listener.username || "Listener"}
                                 </h3>
-                                <button className="flex items-center gap-1 text-xl text-gray-500 hover:text-[#FF8C5A] transition-colors duration-300 font-medium">
+                                <button 
+                                  onClick={() => router.push(`/listener/${listener.l_id}`)}
+                                  className="flex items-center gap-1 text-xl text-gray-500 hover:text-[#FF8C5A] transition-colors duration-300 font-medium hover:scale-105"
+                                >
                                   <span>View Profile</span>
                                   <ExternalLink className="w-3 h-3" />
                                 </button>
                               </div>
                               <div className="flex items-center gap-2">
                                 <div className="flex items-center">
-                                  {[...Array(5)].map((_, i) => (
-                                    <Star
-                                      key={i}
-                                      className={`w-5 h-5 ${i < Math.floor(listener.rating == null ? 4 : listener.rating)
-                                          ? "text-yellow-500 fill-current"
-                                          : i === Math.floor(listener.rating) &&
-                                            listener.rating % 1 !== 0
-                                            ? "text-yellow-500 fill-current opacity-50"
-                                            : "text-gray-300"
-                                        }`}
-                                    />
-                                  ))}
+                                  {[...Array(5)].map((_, i) => {
+                                    const rating = listener.rating ?? 4;
+                                    return (
+                                      <Star
+                                        key={i}
+                                        className={`w-5 h-5 ${i < Math.floor(rating)
+                                            ? "text-yellow-500 fill-current"
+                                            : i === Math.floor(rating) &&
+                                              rating % 1 !== 0
+                                              ? "text-yellow-500 fill-current opacity-50"
+                                              : "text-gray-300"
+                                          }`}
+                                      />
+                                    );
+                                  })}
                                 </div>
                                 <span className="text-xl font-semibold text-black">
-                                  {listener.rating}
+                                  {listener.rating ?? 4}
                                 </span>
                               </div>
                             </div>
@@ -163,7 +193,7 @@ export default function FeaturedListeners() {
                             {listener.description == null ? 'Listener description.... ' : listener.description}
                           </p>
                           <div className="flex flex-wrap gap-2 mb-6">
-                            {(listener.preferences || []).map((tag) => (
+                            {(listener.preferences || []).map((tag: string) => (
                               <span
                                 key={tag}
                                 className="px-4 py-2 bg-gradient-to-r from-[#FFE0D5] to-[#FFF0E8] text-[#FF8C5A] text-lg font-semibold rounded-full border border-[#FFE0D5] hover:border-[#FF8C5A] transition-colors cursor-default"
@@ -183,7 +213,7 @@ export default function FeaturedListeners() {
                             </div>
                             <div className="flex items-center justify-between gap-4">
                               <div className="flex flex-wrap gap-2">
-                                {(listener?.languages || ['English', 'Hindi']).map((language) => (
+                                {(listener?.languages || ['English', 'Hindi']).map((language: string) => (
                                   <span
                                     key={language}
                                     className="px-3 py-1.5 bg-gradient-to-r from-[#FF8C5A] to-[#e67848] text-white text-sm font-medium rounded-full shadow-sm"

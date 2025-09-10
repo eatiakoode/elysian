@@ -195,7 +195,7 @@ export default function SignupPage() {
         
         login(userData);
         setSuccess(`Registration successful! Redirecting to ${formData.user_type === 'seeker' ? 'Seeker' : 'Listener'} dashboard...`);
-
+        localStorage.setItem("adminToken", otpResponse.data?.access);
         setTimeout(() => {
           const dashboardUrl = getDashboardUrl(formData.user_type);
           console.log('Signup successful, redirecting to:', dashboardUrl, 'for user type:', formData.user_type);
