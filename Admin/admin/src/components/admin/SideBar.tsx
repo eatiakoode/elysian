@@ -17,26 +17,32 @@ export default function Sidebar() {
   
   const handleLogout = async () => {
     const accessToken = localStorage.getItem('adminToken');
+    const refreshToken = localStorage.getItem('adminRefresh');
 
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL1}/logout/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
+          ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
         },
-        body: JSON.stringify({ refresh: accessToken })
+        body: JSON.stringify({ refresh: refreshToken || '' })
       });
 
-      if (response.ok) {
-        localStorage.removeItem('adminToken');
-        router.push('/admin/login');
-        console.log("Logout successful");
-      } else {
-        console.error("Logout failed.");
+      if (!response.ok) {
+        console.error("Logout failed on server (continuing to clear local session).");
       }
+
+      // Always clear local session to ensure logout client-side
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminRefresh');
+      router.push('/admin/login');
+      console.log("Logout complete");
     } catch (error) {
       console.error("An error occurred during logout:", error);
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminRefresh');
+      router.push('/admin/login');
     }
   };
 
@@ -45,6 +51,8 @@ export default function Sidebar() {
     { href: "/admin/users", icon: Users, label: "Users" },
     { href: "/admin/category", icon: ListTodo, label: "Categories" },
     { href: "/admin/connections", icon: Network, label: "Connections" },
+    { href: "/admin/blog", icon: Activity, label: "Blog" },
+    { href: "/admin/testimonial", icon: Activity, label: "Testimonials" },
   ];
 
   return (

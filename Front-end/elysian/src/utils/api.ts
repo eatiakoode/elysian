@@ -1,5 +1,6 @@
 import { getApiUrl } from '@/config/api';
 
+
 // API Response types
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -9,7 +10,6 @@ export interface ApiResponse<T = any> {
 }
 
 export interface RegisterData {
-  u_id: string;
   username: string;
   email: string;
   password: string;
@@ -24,7 +24,12 @@ export interface LoginData {
   username_or_email:string,
   password: string;
 }
-
+export interface CategoryId{
+  category_id:string
+}
+export interface startDirectChatData {
+  listener_id: string;
+}
 
 // Generic API call function
 export const apiCall = async <T>(
@@ -117,114 +122,156 @@ export const isValidUserType = (userType: string): boolean => {
   return validTypes.includes(userType?.toLowerCase()?.trim());
 };
 
-// Test function to check backend connectivity
-export const testBackendConnection = async (): Promise<void> => {
-  console.log("🔍 Testing backend connectivity...");
-  console.log("Base URL:", getApiUrl(''));
-  
-  // First, test if the server is reachable at all
+export const listenerCarouselData = async () => {
   try {
-    const rootUrl = getApiUrl('/');
-    console.log("Testing root endpoint:", rootUrl);
-    
-    const rootResponse = await fetch(rootUrl, { method: 'GET' });
-    console.log(`✅ Root endpoint: ${rootResponse.status} ${rootResponse.statusText}`);
-    
-    // If we get a response, let's see what's available
-    if (rootResponse.ok) {
-      try {
-        const rootData = await rootResponse.text();
-        console.log("Root response:", rootData.substring(0, 200) + "...");
-      } catch (e) {
-        console.log("Could not read root response");
-      }
-    }
+    const response = await fetch(getApiUrl('/api/listenerList'));
+    const data = await response.json();
+    return data;
   } catch (error) {
-    console.log(`❌ Root endpoint: ${error}`);
-  }
-  
-  const endpoints = [
-    // OTP endpoints to test
-    '/api/send-otp/',
-    '/api/sendotp/',
-    '/api/otp/send/',
-    '/api/otp/send',
-    '/api/sendotp',
-    '/api/send-otp',
-    '/api/otp',
-    '/api/verify-otp/',
-    '/api/verifyotp/',
-    '/api/otp/verify/',
-    '/api/otp/verify',
-    
-    // Registration endpoints
-    '/api/register/',
-    '/api/register',
-    '/api/signup/',
-    '/api/signup',
-    '/api/user/register/',
-    '/api/user/register',
-    
-    // Login endpoints  
-    '/api/login/',
-    '/api/login',
-    '/api/signin/',
-    '/api/signin',
-    '/api/user/login/',
-    '/api/user/login',
-    
-    // API info endpoints
-    '/api/',
-    '/api',
-    '/docs',
-    '/swagger',
-    '/openapi'
-  ];
-  
-  console.log("\n🔍 Testing GET requests on endpoints...");
-  
-  for (const endpoint of endpoints) {
-    try {
-      const url = getApiUrl(endpoint);
-      console.log(`Testing GET: ${url}`);
-      
-      const response = await fetch(url, { method: 'GET' });
-      console.log(`✅ ${endpoint}: ${response.status} ${response.statusText}`);
-      
-      // If we get a 405, it means the endpoint exists but doesn't allow GET
-      if (response.status === 405) {
-        console.log(`🎯 ${endpoint} EXISTS but doesn't allow GET (needs POST/PUT/etc)`);
-      }
-      
-    } catch (error) {
-      console.log(`❌ ${endpoint}: ${error}`);
-    }
-  }
-  
-  // Now test some key endpoints with POST method
-  console.log("\n🔍 Testing POST requests on key endpoints...");
-  
-  const postEndpoints = [
-    '/api/register/',
-    '/api/register',
-    '/api/login/',
-    '/api/login'
-  ];
-  
-  for (const endpoint of postEndpoints) {
-    try {
-      const url = getApiUrl(endpoint);
-      console.log(`Testing POST: ${url}`);
-      
-      const response = await fetch(url, { 
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ test: true })
-      });
-      console.log(`✅ POST ${endpoint}: ${response.status} ${response.statusText}`);
-      
-    } catch (error) {
-      console.log(`❌ POST ${endpoint}: ${error}`);
-    }
+    console.error("Error fetching listener carousel data:", error);
+    return [];
   }
 };
+
+export const listenerCategoryWise = async (categoryId:string): Promise<ApiResponse> => {
+  return apiCall('/api/listenerList/', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ category_id: categoryId }),
+  });
+};
+
+export const connectionList = async (): Promise<ApiResponse> => {
+  return apiCall('/api/get-connection-list/', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`,
+      'Content-Type': 'application/json',
+    },
+  });
+};
+export const connectedListeners = async (): Promise<ApiResponse> => {
+  return apiCall('/api/connections/', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`,
+      'Content-Type': 'application/json',
+    },
+  });
+};
+
+export const getRooms = async (): Promise<ApiResponse> => {
+  return apiCall('/chat/rooms/', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`,
+      'Content-Type': 'application/json',
+    },
+  });
+}
+
+export const startDirectChat = async (listener_id: string): Promise<ApiResponse> => {
+  return apiCall('/chat/start-direct/', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ recipient_id:listener_id }),
+  });
+}
+
+export const getMessages = async (room_id: number): Promise<ApiResponse> => {
+  return apiCall(`/chat/${room_id}/messages/`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`,
+      'Content-Type': 'application/json',
+    },  
+  });
+}
+
+export const acceptConnection = async (connectionId: number, action: 'accept' | 'reject'): Promise<ApiResponse> => {
+  return apiCall('/api/accept-connection/', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      connection_id: connectionId,
+      action: action
+    }),
+  });
+}
+
+export const connection = async (listener_id: string): Promise<ApiResponse> => {
+  return apiCall('/api/connection-request/', {
+    method: 'POST',
+    headers: { 
+      'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({listener_id:listener_id} ),
+  });
+}
+
+export const getUserProfile = async (): Promise<ApiResponse> => {
+  return apiCall('/api/user-profile/', {
+    method: 'GET',
+    headers: { 
+      'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`,
+      'Content-Type': 'application/json',
+    },
+  });
+}
+
+export const updateUserProfile = async (profileData: FormData): Promise<ApiResponse> => {
+  try {
+    const url = getApiUrl('/api/user-profile/');
+    
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: { 
+        'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`,
+        // Don't set Content-Type for FormData, let browser set it with boundary
+      },
+      body: profileData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.message || data.error || `HTTP ${response.status}`,
+        data: data
+      };
+    }
+
+    return {
+      success: true,
+      data: data,
+      message: data.message
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error occurred'
+    };
+  }
+}
+
+export const listener = async (listener_id:string): Promise<ApiResponse> => {
+  return apiCall('/api/listener-profile/', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ listener_id: listener_id }),
+  });
+}

@@ -2,7 +2,7 @@
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
-from .serializers import OTPSerializer, UserRegisterSerializer, UserLoginSerializer
+from .serializers import OTPSerializer, UserRegisterSerializer, UserLoginSerializer,SeekerSerializer,UserProfileSerializer, UserProfileUpdateSerializer
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -16,8 +16,12 @@ from django.core.mail import send_mail
 from rest_framework import generics, permissions
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import BasePermission
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+import os
+from django.utils.crypto import get_random_string
 
-# User = get_user_model() 
+#User = get_user_model() 
 
 class RegisterView(APIView):
      permission_classes = [AllowAny]
@@ -50,7 +54,6 @@ class RegisterView(APIView):
             )
             
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
@@ -85,7 +88,7 @@ class LoginView(APIView):
             }, status=status.HTTP_200_OK)
  
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+    
 class OTPView(APIView):
      permission_classes = [AllowAny]
      def post(self, request):
@@ -165,12 +168,12 @@ class ForgotPassword(APIView):
 class CategoryList(APIView):
     def get(self, request):
         categories = Category.objects.all().order_by('id')
-        category_data = [{"id": cat.id, "name": cat.Category_name} for cat in categories]
+        category_data = [{"id": cat.id, "name": cat.Category_name,"description":cat.description,"icon":cat.icon} for cat in categories]
         return Response(category_data, status=status.HTTP_200_OK)
     
 class ListenersBasedOnPreference(APIView):
     # Use DRF's permission system to handle authentication.
-    # This automatically rejects requests from non-logged-in users.
+    # This automatically rejects requests from non-logged-in users. 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -224,62 +227,68 @@ class ConnectionList(APIView):
     def get(self, request):
         user = request.user
 
-        def get_connection_status(connection):
-            """Helper function to determine the connection status string."""
-            if connection.pending:
-                return "Pending"
-            if connection.accepted:
-                return "Accepted"
-            if connection.rejected:
-                return "Rejected"
-            return "Unknown"
-
-        # First, try to find a Seeker profile for the user
         try:
+            # Case 1: User is Seeker
             seeker = Seeker.objects.get(user=user)
-            # If successful, the user is a Seeker. Get their connections with Listeners.
             connections = (
                 Connections.objects
                 .filter(seeker=seeker)
                 .select_related('listener__user')
             )
-            data = [
-                {
+
+            data = []
+            for conn in connections:
+                listener = conn.listener
+                data.append({
                     "connection_id": conn.id,
-                    "user_id": conn.listener.user.u_id, # Showing the other user's ID
-                    "username": conn.listener.user.username,
-                    "role": "Listener", # The role of the person they are connected to
-                    "status": get_connection_status(conn)
-                }
-                for conn in connections
-            ]
+                    "user_id": listener.user.u_id,
+                    "username": listener.user.username,
+                    "role": "Listener",
+                    "status":conn.get_status(),
+                    "listener_profile": ListenerSerializer(listener).data,
+                    "listener_user": {
+                        "id": listener.user.u_id,
+                        "username": listener.user.username,
+                        "email": listener.user.email,
+                    },
+                })
+
             return Response(data, status=status.HTTP_200_OK)
 
         except Seeker.DoesNotExist:
-            # If a Seeker profile doesn't exist, try to find a Listener profile
             try:
+                # Case 2: User is Listener
                 listener = Listener.objects.get(user=user)
-                # If successful, the user is a Listener. Get their connections from Seekers.
                 connections = (
                     Connections.objects
                     .filter(listener=listener)
                     .select_related('seeker__user')
                 )
-                data = [
-                    {
+
+                data = []
+                for conn in connections:
+                    seeker = conn.seeker
+                    data.append({
                         "connection_id": conn.id,
-                        "user_id": conn.seeker.user.u_id, # Showing the other user's ID
-                        "username": conn.seeker.user.username,
-                        "role": "Seeker", # The role of the person who connected with them
-                        "status": get_connection_status(conn)
-                    }
-                    for conn in connections
-                ]
+                        "user_id": seeker.user.u_id,
+                        "username": seeker.user.username,
+                        "role": "Seeker",
+                        "status": conn.get_status(),
+                        "seeker_profile": SeekerSerializer(seeker).data,
+                        "seeker_user": {
+                            "id": seeker.user.u_id,
+                            "username": seeker.user.username,
+                            "email": seeker.user.email,
+                        },
+                    })
+
                 return Response(data, status=status.HTTP_200_OK)
 
             except Listener.DoesNotExist:
-                # If the user has neither a Seeker nor a Listener profile
-                return Response({"error": "No Seeker or Listener profile found for this user."}, status=status.HTTP_404_NOT_FOUND)
+                return Response(
+                    {"error": "No Seeker or Listener profile found for this user."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
 class AcceptConnection(APIView):
     permission_classes = [IsAuthenticated]
@@ -403,3 +412,119 @@ class LogoutView(APIView):
         except Exception as e:
             # Catch any other unexpected errors
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+# Import AllowAny
+# ... your other imports for Listener and ListenerSerializer
+
+class ListenerListCreateView(APIView):
+    # No need for the permission_classes attribute here
+    
+    def get_permissions(self):
+        """
+        Instantiates and returns the list of permissions that this view requires.
+        """
+        # Allow any user (authenticated or not) to access the GET method
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        # Require authentication for POST requests
+        return [IsAuthenticated()]
+
+    def get(self, request):
+        """
+        This method is now open to everyone.
+        """ 
+         # Fetch all listeners with related user and preferences to minimize queries
+        listeners = Listener.objects.select_related('user').prefetch_related('preferences').all()
+        serializer = ListenerSerializer(listeners, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def post(self, request):
+    
+    # Use the 'in' keyword to check if a key exists in the request data
+        if 'category_id' in request.data:
+            category_id = request.data.get("category_id")
+
+        # You can filter directly on the ID. The .distinct() is good practice.
+            listeners = Listener.objects.filter(preferences__id=category_id).distinct()
+        
+        # Optimize the query to prevent N+1 issues
+            listeners = listeners.select_related('user').prefetch_related('preferences')
+
+            serializer = ListenerSerializer(listeners, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        elif 'listener_id' in request.data:
+            listener_id = request.data.get("listener_id")
+
+            try:
+            # Also optimize this single object lookup
+                listener = Listener.objects.select_related('user').prefetch_related('preferences').get(l_id=listener_id)
+            except Listener.DoesNotExist:
+                return Response({"error": "Listener not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = ListenerSerializer(listener)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+    
+        else:
+        # Handle the case where neither key is provided
+            return Response(
+            {"error": "Please provide either a 'category_id' or 'listener_id'."},
+            status=status.HTTP_400_BAD_REQUEST
+            )
+
+class getConnectionListForListener(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        try:
+            # Ensure the user is a listener
+            listener = Listener.objects.get(user=user)
+            print(listener)
+        except Listener.DoesNotExist:
+            return Response({"error": "Listener profile not found for this user."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get all connections where the current user is the listener
+        connections = Connections.objects.filter(listener=listener)
+        print("sss",connections)
+        friend_list = []
+        for conn in connections:
+            friend_list.append({
+                "id": conn.id,
+                "username": conn.seeker.user.username,  # Use .username
+                "status": "Accepted" if conn.accepted else "Pending" if conn.pending else "Rejected"
+            })
+
+        return Response(friend_list, status=status.HTTP_200_OK)   
+    
+# ---------------- User Profile API Views ----------------
+class UserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get current user's profile"""
+        serializer = UserProfileSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def put(self, request):
+        """Update current user's profile"""
+        profile_image = request.FILES.get('image')
+        data = request.data.copy()
+        print("data",data)
+        if profile_image:
+            filename_base, ext = os.path.splitext(profile_image.name)
+            safe_name = f"profile_{get_random_string(8)}{ext.lower()}"
+            path = os.path.join('public/profile', safe_name)
+            saved_path = default_storage.save(path, ContentFile(profile_image.read()))
+            data['profile_image'] = saved_path
+        serializer = UserProfileUpdateSerializer(request.user,data=data, partial=True)    
+        if serializer.is_valid():
+            serializer.save()
+            # Return updated profile
+            profile_serializer = UserProfileSerializer(request.user)
+            return Response({
+                "message": "Profile updated successfully",
+                "user": profile_serializer.data
+            }, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)    
