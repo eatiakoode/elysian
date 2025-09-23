@@ -7,7 +7,7 @@ from chat_api.middleware import JWTAuthMiddleware
 import chat_api.routing
 import notification_api.routing
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Lissnify.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Lissnify.settings_production')
 
 django_asgi_app = get_asgi_application()
 

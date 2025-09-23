@@ -17,7 +17,6 @@ RUN apt-get update \
         libpq-dev \
         gettext \
         curl \
-        redis-tools \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
