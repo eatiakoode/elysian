@@ -1,6 +1,8 @@
 # your_app/middleware.py
 
 from channels.db import database_sync_to_async
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from urllib.parse import parse_qs
@@ -11,9 +13,6 @@ def get_user_from_token(token_key):
     Asynchronously retrieves a user from the database given a JWT.
     Returns AnonymousUser if the token is invalid or the user is not found.
     """
-    from django.contrib.auth import get_user_model
-    from django.contrib.auth.models import AnonymousUser
-    
     User = get_user_model()
     try:
         access_token = AccessToken(token_key)
@@ -45,7 +44,6 @@ class JWTAuthMiddleware:
             scope['user'] = user
             print(f"🔧 JWT Middleware - User: {user}, Authenticated: {user.is_authenticated}")
         else:
-            from django.contrib.auth.models import AnonymousUser
             scope['user'] = AnonymousUser()
             print(f"🔧 JWT Middleware - No token, using AnonymousUser")
 

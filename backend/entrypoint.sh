@@ -19,11 +19,22 @@ wait_for_db() {
 # Function to wait for Redis
 wait_for_redis() {
     echo "Waiting for Redis..."
-    while ! redis-cli -u $REDIS_URL ping; do
-        echo "Redis is unavailable - sleeping"
-        sleep 1
+    local max_attempts=30
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        if redis-cli -u $REDIS_URL ping >/dev/null 2>&1; then
+            echo "Redis is up - continuing"
+            return 0
+        fi
+        echo "Redis is unavailable - sleeping (attempt $attempt/$max_attempts)"
+        sleep 2
+        attempt=$((attempt + 1))
     done
-    echo "Redis is up - continuing"
+    
+    echo "Redis connection failed after $max_attempts attempts"
+    echo "Continuing without Redis (application may not work properly)"
+    return 1
 }
 
 # Wait for dependencies if they are not available
@@ -37,7 +48,7 @@ if [ -n "$DATABASE_URL" ]; then
 fi
 
 if [ -n "$REDIS_URL" ]; then
-    wait_for_redis
+    wait_for_redis || echo "Warning: Redis connection failed, but continuing deployment"
 fi
 
 # Run database migrations
